@@ -1,10 +1,10 @@
 from inaregParser import UUParser
 
-tes_UU = UUParser('sample3.pdf')
-print("Judul:", tes_UU.get_title())
+test_UU = UUParser('sample3.pdf')
+print("Judul:", test_UU.get_title())
 print("\n")
-print("Konsideran Menimbang:", tes_UU.get_phylosophical_consideration())
+print("Konsideran Menimbang:", test_UU.get_phylosophical_consideration())
 print("\n")
-print("Dasar Hukum:", tes_UU.get_legal_consideration())
+print("Dasar Hukum:", test_UU.get_legal_consideration())
 print("\n")
-print("Full Text:", tes_UU.get_text())
+print("Full Text:", test_UU.get_text())

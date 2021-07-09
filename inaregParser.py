@@ -1,3 +1,4 @@
+from os import walk
 import PyPDF2
 import re
 
@@ -48,10 +49,33 @@ class UUParser:
         # remove page number
         text = re.sub('-\s{0,1}\d+\s{0,1}-', '', text)   
 
-        # remove year and gazzete number appear in each page
+        # remove year and gazette number appear in each page
         text = re.sub('(\d{4},\sNo.\d+)', '', text)           
         
         return text
+
+    def info(self):
+        """ Retrieve general information about the bill (number, year, enacment etc.)
+
+        Returns:
+            [dict]: number, year, signed_date and enactment_date
+        """
+
+        cr = re.compile(r"UNDANG-UNDANG REPUBLIK INDONESIA NOMOR\s(\d+)\sTAHUN\s(\d{4})", re.MULTILINE|re.IGNORECASE)
+        res = cr.search(self.__text).groups(0)
+
+        cr2 = re.compile(r"disahkan\s+di\s+(.+)\spada\stanggal\s(\d+\s\w+\s\d{4})\sPresiden", re.MULTILINE|re.IGNORECASE)
+        res2 = cr2.search(self.__text).groups(0)
+
+        cr3 = re.compile(r"diundangkan\s+di\s+(.+)\spada\stanggal\s(\d+\s\w+\s\d{4})", re.MULTILINE|re.IGNORECASE)
+        res3 = cr3.search(self.__text).groups(0)
+
+        return {
+            "number": int(res[0]) if res[0].isdigit() else res[0],
+            "year": int(res[1]) if res[1].isdigit() else res[1],
+            "signed_date": int(res2[1]) if res2[1].isdigit() else res2[1],
+            "enactment_date": int(res3[1]) if res3[1].isdigit() else res3[1]
+        }
         
     def get_text(self):
         return self.__text
@@ -117,3 +141,45 @@ class UUParser:
         return cr.search(self.__text).groups(0)[0].strip()
 
 
+    def get_words(self, n, exclude_stopword=False):           
+        """ Get token/words appear in the text.
+
+        Args:
+            n (int): number of retrieved words
+            exclude_stopword (bool, optional): If false will include stopword in the result. Defaults to False.
+
+        Returns:
+            [list(tuple)]: list of word and frequency of occurence
+        """
+
+        dict_counts = dict()
+        words = self.__text.split()
+
+        for w in words:
+            w = w.lower().strip().strip('.')            
+            if w.isdigit(): continue
+            if w in dict_counts: dict_counts[w] += 1
+            else: dict_counts[w] = 1
+        
+        # exclude numbering and bullets                
+        for w in list(dict_counts.keys()):
+            if re.match(r"([a-z]\.)|([a-z]\))|(\([a-z]\))|(\d+\.)|(\d+\))|(\(\d+\))",w):
+                del dict_counts[w]
+
+        # exclude single character
+        for w in list(dict_counts.keys()):
+            if len(w) == 1:
+                del dict_counts[w]                
+
+        # exclude stopword             
+        if not exclude_stopword:
+            with open('stopwords.txt', 'r') as f:                
+                stopword = f.read().splitlines()                                
+                for w in list(dict_counts.keys()):
+                    if w in stopword: 
+                        del dict_counts[w]
+        
+        # check if n is not defined, then return all words
+        if not n: n = len(words)
+
+        return sorted(dict_counts.items(), reverse=True, key=lambda x: x[1])[:n]

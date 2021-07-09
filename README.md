@@ -4,7 +4,7 @@ _(Pengurai Teks Regulasi Indonesia)._
 
 ### 1. Bill Parser (Undang-Undang)
 
-For optimal result, we recommend to load a bill published in Official Gazzete (peraturan.go.id).
+For optimal result, we recommend to load a bill published in Official Gazette (peraturan.go.id).
 
 The parser currently support:
 

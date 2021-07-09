@@ -12,7 +12,7 @@ class UUParser:
         
     def load_pdf(self, file: str):
         """ Load PDF from PDF. 
-        Reccomend loading a bill from official gazzete (peraturan.go.id)
+        Reccomend loading a bill from official gazette (peraturan.go.id)
 
         Args:
             file ([str]): filename

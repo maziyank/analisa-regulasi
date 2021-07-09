@@ -12,7 +12,7 @@ class UUParser:
         
     def load_pdf(self, file: str):
         """ Load PDF from PDF. 
-        Reccomend loading Bill published in official gazzete (peraturan.go.id)
+        Reccomend loading a bill from official gazzete (peraturan.go.id)
 
         Args:
             file ([str]): filename
@@ -56,8 +56,8 @@ class UUParser:
     def get_text(self):
         return self.__text
     
-    def get_phylosophical_consideration(self):
-        """ Parsing Pylosophical Consideartion
+    def get_philosophical_consideration(self):
+        """ Parsing Philosophical Consideration
 
         Returns:
             [(str, str)]: (Number and Consideration Text)
@@ -81,7 +81,7 @@ class UUParser:
         return res
     
     def get_legal_consideration(self):
-        """ Parsing Legal Consideartion
+        """ Parsing Legal Consideration
 
         Returns:
             [(str, str)]: (Number and Consideration Text)

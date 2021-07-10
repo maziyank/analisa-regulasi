@@ -26,8 +26,9 @@ class UUParser:
         for i in range(pdfReader.numPages):
             pageObj = pdfReader.getPage(i) 
             text += ' '+ pageObj.extractText()
-
-        self.__text = self.clean_text(text)              
+        
+        self.__text = self.clean_text(text)       
+        self.__heading, self.__body = self.split_content_and_heading(self.__text)               
         pdfFileObj.close() 
         
     def clean_text(self, text: str):
@@ -54,6 +55,16 @@ class UUParser:
         
         return text
 
+    def split_content_and_heading(self, text):        
+        """ Split bill heading and body text  
+
+            Returns:
+                [(str, body)]: (Heading, Body)
+        """
+        
+        text = re.search(r"Menetapkan\s*:[^\.]*\.*?", text)
+        return (self.__text[:text.span()[1]+1], self.__text[text.span()[1]+1:])
+
     def info(self):
         """ Retrieve general information about the bill (number, year, enacment etc.)
 
@@ -62,13 +73,13 @@ class UUParser:
         """
 
         cr = re.compile(r"UNDANG-UNDANG REPUBLIK INDONESIA NOMOR\s(\d+)\sTAHUN\s(\d{4})", re.MULTILINE|re.IGNORECASE)
-        res = cr.search(self.__text).groups(0)
+        res = cr.search(self.__heading).groups(0)
 
         cr2 = re.compile(r"disahkan\s+di\s+(.+)\spada\stanggal\s(\d+\s\w+\s\d{4})\sPresiden", re.MULTILINE|re.IGNORECASE)
-        res2 = cr2.search(self.__text).groups(0)
+        res2 = cr2.search(self.__body).groups(0)
 
         cr3 = re.compile(r"diundangkan\s+di\s+(.+)\spada\stanggal\s(\d+\s\w+\s\d{4})", re.MULTILINE|re.IGNORECASE)
-        res3 = cr3.search(self.__text).groups(0)
+        res3 = cr3.search(self.__body).groups(0)
 
         return {
             "number": int(res[0]) if res[0].isdigit() else res[0],
@@ -78,7 +89,31 @@ class UUParser:
         }
         
     def get_text(self):
+        """ Retrieve bill full text  
+
+            Returns:
+                [str]: (Full Text)
+        """
+
         return self.__text
+
+    def get_heading(self):
+        """ Retrieve bill heading text  
+
+            Returns:
+                [str]: (Heading Text)
+        """
+
+        return self.__heading
+
+    def get_body(self):
+        """ Retrieve bill body text  
+
+            Returns:
+                [str]: (Body Text)
+        """        
+
+        return self.__body                
     
     def get_philosophical_consideration(self):
         """ Parsing Philosophical Consideration
@@ -87,8 +122,8 @@ class UUParser:
             [(str, str)]: (Number and Consideration Text)
         """        
 
-        cr = re.compile(r"menimbang\s{0,}\:(.+)(mengingat)", re.MULTILINE|re.IGNORECASE)
-        consideration = cr.search(self.__text).groups(0)[0].strip()
+        cr = re.compile(r"menimbang\s*\:(.+)(mengingat)", re.MULTILINE|re.IGNORECASE)
+        consideration = cr.search(self.__heading).groups(0)[0].strip()
         consideration = consideration.split(';')
         consideration = [c.strip() for c in consideration]
         consideration = [c for c in consideration if len(c)>0]
@@ -111,8 +146,8 @@ class UUParser:
             [(str, str)]: (Number and Consideration Text)
         """      
 
-        cr = re.compile(r"mengingat\s{0,}\:(.+)(Dengan\s+Persetujuan)", re.MULTILINE|re.IGNORECASE)
-        consideration = cr.search(self.__text).groups(0)[0].strip()
+        cr = re.compile(r"mengingat\s*\:(.+)(Dengan\s+Persetujuan)", re.MULTILINE|re.IGNORECASE)
+        consideration = cr.search(self.__heading).groups(0)[0].strip()
                 
         consideration = consideration.split(';')
         consideration = [c.strip() for c in consideration]
@@ -138,7 +173,7 @@ class UUParser:
 
         cr = re.compile(r"tentang(.+)dengan rahmat", re.MULTILINE|re.IGNORECASE)
         
-        return cr.search(self.__text).groups(0)[0].strip()
+        return cr.search(self.__heading).groups(0)[0].strip()
 
 
     def get_words(self, n, exclude_stopword=False):           
@@ -183,3 +218,5 @@ class UUParser:
         if not n: n = len(words)
 
         return sorted(dict_counts.items(), reverse=True, key=lambda x: x[1])[:n]
+
+

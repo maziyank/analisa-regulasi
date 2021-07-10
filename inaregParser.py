@@ -28,7 +28,7 @@ class UUParser:
             text += ' '+ pageObj.extractText()
         
         self.__text = self.clean_text(text)       
-        self.__heading, self.__body = self.split_content_and_heading(self.__text)               
+        self.__heading, self.__body = self.split_heading_and_body(self.__text)               
         pdfFileObj.close() 
         
     def clean_text(self, text: str):
@@ -55,7 +55,7 @@ class UUParser:
         
         return text
 
-    def split_content_and_heading(self, text):        
+    def split_heading_and_body(self, text):        
         """ Split bill heading and body text  
 
             Returns:
@@ -113,7 +113,24 @@ class UUParser:
                 [str]: (Body Text)
         """        
 
-        return self.__body                
+        return self.__body 
+
+    def get_definitions(self):
+        sentences = [s.strip() for s in self.__body.split('.')]          
+        r1 = re.compile(r"^(.+)(adalah)", re.IGNORECASE);
+        r2 = re.compile(r"(disingkat|(disebut)|disingkat,|disebut,)(.+)", re.IGNORECASE);
+
+        definitions = []
+        for sentence in sentences:
+            if res1 := r1.search(sentence):
+                found = res1.groups(0)[0].strip()
+                if res2 := r2.search(found):
+                    found = res2.groups(0)[2].strip()                    
+                
+                definitions.append(found)
+
+        return definitions
+
     
     def get_philosophical_consideration(self):
         """ Parsing Philosophical Consideration

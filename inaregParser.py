@@ -117,7 +117,7 @@ class UUParser:
 
     def get_definitions(self):
         sentences = [s.strip() for s in self.__body.split('.')]          
-        r1 = re.compile(r"^(.+)(adalah)", re.IGNORECASE);
+        r1 = re.compile(r"^(.+)( adalah )", re.IGNORECASE);
         r2 = re.compile(r"(disingkat|(disebut)|disingkat,|disebut,)(.+)", re.IGNORECASE);
 
         definitions = []
@@ -139,8 +139,8 @@ class UUParser:
             [(str, str)]: (Number and Consideration Text)
         """        
 
-        cr = re.compile(r"menimbang\s*\:(.+)(mengingat)", re.MULTILINE|re.IGNORECASE)
-        consideration = cr.search(self.__heading).groups(0)[0].strip()
+        cr = re.compile(r"menimbang\s*\:(.+)mengingat", re.MULTILINE|re.IGNORECASE)
+        consideration = cr.findall(self.__heading)[0].strip()
         consideration = consideration.split(';')
         consideration = [c.strip() for c in consideration]
         consideration = [c for c in consideration if len(c)>0]
@@ -163,8 +163,8 @@ class UUParser:
             [(str, str)]: (Number and Consideration Text)
         """      
 
-        cr = re.compile(r"mengingat\s*\:(.+)(Dengan\s+Persetujuan)", re.MULTILINE|re.IGNORECASE)
-        consideration = cr.search(self.__heading).groups(0)[0].strip()
+        cr = re.compile(r"mengingat\s*\:(.+)Dengan\s+Persetujuan", re.MULTILINE|re.IGNORECASE)
+        consideration = cr.findall(self.__heading)[0].strip()        
                 
         consideration = consideration.split(';')
         consideration = [c.strip() for c in consideration]
@@ -190,7 +190,7 @@ class UUParser:
 
         cr = re.compile(r"tentang(.+)dengan rahmat", re.MULTILINE|re.IGNORECASE)
         
-        return cr.search(self.__heading).groups(0)[0].strip()
+        return cr.findall(self.__heading)[0].strip()
 
 
     def get_words(self, n, exclude_stopword=False):           
@@ -236,4 +236,43 @@ class UUParser:
 
         return sorted(dict_counts.items(), reverse=True, key=lambda x: x[1])[:n]
 
+    def generate_ngrams(self, text, n = 2):
+        text = text.lower()
+        text = re.sub(r'[^a-zA-Z0-9\s]', ' ', text)
+        tokens = [token for token in text.split(" ") if token != ""]
+        ngrams = zip(*[tokens[i:] for i in range(n)])
+        return [" ".join(ngram) for ngram in ngrams]        
 
+    def get_phrashes(self, max_word=5, min_occurence=2):
+        phrases = []
+        preposition = ['dan','atau','yang','dan/atau','dalam','di','pada','untuk','sebagaimana','atas','bawah','dapat',
+        'sesuai','saat','paling','oleh','dari','meliputi','terdiri','serta','dengan','ini','lain','dimaksud','maksud',
+        'berdasarkan','tentang','berupa','sejak','paling',
+        'ayat','pasal','huruf', 'selanjutnya','sebelumnya','adalah','sebagai','disebut','disingkat','secara','melalui']
+
+        for i in range(2, max_word + 1):
+            phrases.extend(self.generate_ngrams(text = self.__text, n = i))
+
+        dict_counts = dict()       
+        for p in phrases:
+            p = p.lower().strip().strip('.')                        
+            if p in dict_counts: dict_counts[p] += 1
+            else: dict_counts[p] = 1
+
+        for k in list(dict_counts.keys()):
+            if dict_counts[k] < min_occurence:
+                del dict_counts[k]
+                continue
+
+            token = k.split()
+            if (token[0] in preposition) or (token[-1] in preposition):
+                del dict_counts[k]
+                continue
+
+            if (token[0].isdigit()) or (token[-1].isdigit()):
+                del dict_counts[k]
+                continue
+
+                      
+
+        return sorted(dict_counts.items(), reverse=True, key=lambda x: x[1])

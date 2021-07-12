@@ -324,3 +324,14 @@ class UUParser:
 
     def cited_regulation(self):
         pass
+
+    def further_provision(self):
+        r = re.compile(r"(Ketentuan lebih lanjut mengenai)(.*)((dituangkan dalam)|(diatur dengan)(.*))")
+        provisions = []
+        for sentence in self.__sentences:
+            if found := r.search(sentence):
+                found = found.groups(2)
+                provisions.append((found[1].strip(), found[5].strip()))
+
+        return provisions
+

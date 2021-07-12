@@ -20,8 +20,6 @@ The parser currently support:
 
 from inaregParser import UUParser
 
-from inaregParser import UUParser
-
 test_UU = UUParser('sample/sample4.pdf')
 print("Judul:", test_UU.title)
 print("\n")

@@ -81,22 +81,46 @@ class UUParser:
             [dict]: number, year, signed_date and enactment_date
         """
 
+        result = dict()
+
+        # extract number and year
         cr = re.compile(r"UNDANG-UNDANG REPUBLIK INDONESIA NOMOR\s(\d+)\sTAHUN\s(\d{4})", re.MULTILINE|re.IGNORECASE)
-        res = cr.search(self.header).groups(0)
+        if res := cr.search(self.header):
+            numberyear = res.groups(0)
+            result['number'] = int(numberyear[0]) if numberyear[0].isdigit() else numberyear[0]
+            result['year'] = int(numberyear[1]) if numberyear[1].isdigit() else numberyear[1]
+        else:
+            result['number'] = None               
+            result['year'] = None              
 
-        cr2 = re.compile(r"disahkan\s+di\s+(.+)\spada\stanggal\s(\d+\s\w+\s\d{4})\sPresiden", re.MULTILINE|re.IGNORECASE)
-        res2 = cr2.search(self.body).groups(0)
+        # extract signed date
+        cr2 = re.compile(r"disahkan\s+di\s+(.+)\spada\stanggal\s(\d+\s\w+\s\d{4})\sPresiden", re.MULTILINE|re.IGNORECASE)        
+        if res2 := cr2.search(self.body):
+            signed_date = res2.groups(0)[1]
+            result['signed_date'] = int(signed_date) if signed_date.isdigit() else signed_date
+        else:
+            result['signed_date'] = None            
 
+        # extract enactment date
         cr3 = re.compile(r"diundangkan\s+di\s+(.+)\spada\stanggal\s(\d+\s\w+\s\d{4})", re.MULTILINE|re.IGNORECASE)
-        res3 = cr3.search(self.body).groups(0)
+        if res3 := cr3.search(self.body):
+            enactment_date = res3.groups(0)[1]
+            result['enactment_date'] = int(enactment_date) if enactment_date.isdigit() else enactment_date
+        else:
+            result['enactment_date'] = None
 
-        return {
-            "number": int(res[0]) if res[0].isdigit() else res[0],
-            "year": int(res[1]) if res[1].isdigit() else res[1],
-            "signed_date": int(res2[1]) if res2[1].isdigit() else res2[1],
-            "enactment_date": int(res3[1]) if res3[1].isdigit() else res3[1],
-            "is_amandement": 'perubahan atas' in self.title.lower()
-        }
+        # extract effective date
+        cr4 = re.compile(r"Undang-Undang ini mulai berlaku pada\stanggal\s(\d+\s\w+\s\d{4})", re.MULTILINE|re.IGNORECASE)
+        if res4 := cr4.search(self.body):
+            effective_date = res4.groups(0)[1]
+            result['effective_date'] = int(effective_date) if effective_date.isdigit() else effective_date
+        else:
+            result['effective_date'] = result['enactment_date'] 
+
+        # extract that the bill is amandement or not
+        result['is_amandement'] = 'perubahan atas' in self.title.lower()
+        
+        return result
         
     def get_text(self):
         """ Retrieve bill full text  

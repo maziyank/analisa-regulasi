@@ -283,15 +283,41 @@ class UUParser:
 
         return sorted(dict_counts.items(), reverse=True, key=lambda x: x[1])
 
+    def get_chapter(self, text):
+        r = re.compile(r"(BAB\s(.+))\s((Bagian)|(Pasal)|(Paragraf))");
+        if res := r.search(text):
+            found = res.groups(1)[0]
+            found = re.split(r"( Bagian )|( Pasal )|( Paragraf )", found)[0].strip()                
+
+            return found
+        
+        return False
+
+    def get_part(self, text):
+        r = re.compile(r"(Bagian\s(.+))\s((Pasal)|(Paragraf))");
+        if res := r.search(text):
+            found = res.groups(1)[0]
+            found = re.split(r"( Pasal )|( Paragraf )", found)[0].strip()                
+
+            return found
+        
+        return False
+
+    def get_paragraph(self, text):
+        r = re.compile(r"(Paragraf\s(.+))\s(Pasal)");
+        if res := r.search(text):
+            found = res.groups(1)[0]
+            found = re.split(r"Pasal", found)[0].strip()                
+
+            return found
+        
+        return False        
+
     def get_heading(self):
-        r = re.compile(r"((BAB\s(.+))|(Bagian\s(.+))|(Paragraf\s(.+)))\s((Bagian)|(Pasal)|(Paragraf))");
-
-        chapters = []
+        heading = []
         for sentence in self.__sentences:
-            if res := r.search(sentence):
-                found = res.groups(1)[0]
-                found = re.split(r"( Bagian )|( Pasal )|( Paragraf )", found)[0].strip()
-                
-                chapters.append(found)
+            if found := self.get_chapter(sentence): heading.append(found)
+            if found2 := self.get_part(sentence): heading.append(found2)
+            if found3 := self.get_paragraph(sentence): heading.append(found3)                
 
-        return chapters
+        return heading        

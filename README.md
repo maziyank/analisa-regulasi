@@ -20,16 +20,22 @@ The parser currently support:
 
 from inaregParser import UUParser
 
-test_UU = UUParser('sample3.pdf')
-print("Judul:", test_UU.get_title())
+from inaregParser import UUParser
+
+test_UU = UUParser('sample/sample4.pdf')
+print("Judul:", test_UU.title)
 print("\n")
-print("Konsideran Menimbang:", test_UU.get_philosophical_consideration())
+print("Konsideran Menimbang:", test_UU.philosophical_consideration)
 print("\n")
-print("Dasar Hukum:", test_UU.get_legal_consideration())
+print("Dasar Hukum:", test_UU.legal_consideration)
 print("\n")
-print("Info:", test_UU.get_words(40))
+print("Token:", test_UU.get_words(40))
 print("\n")
-print("Definitions:", test_UU.get_definitions())
+print("Definitions:", test_UU.definitions)
+print("\n")
+print("Info:", test_UU.info)
+print("\n")
+print("Heading:", test_UU.heading)
 
 
 ```

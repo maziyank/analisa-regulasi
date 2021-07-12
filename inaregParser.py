@@ -27,10 +27,17 @@ class UUParser:
             pageObj = pdfReader.getPage(i) 
             text += ' '+ pageObj.extractText()
         
-        self.__text = self.clean_text(text)       
-        self.__heading, self.__body = self.split_heading_and_body(self.__text)   
-        self.__sentences = [s.strip() for s in self.__body.split('.')]            
         pdfFileObj.close() 
+
+        self.__text = self.clean_text(text)       
+        self.header, self.body= self.split_heading_and_body(self.__text)   
+        self.__sentences = [s.strip() for s in self.body.split('.')]           
+        self.title = self.get_title()
+        self.info = self.info()
+        self.definitions = self.get_definitions()
+        self.heading = self.get_heading()
+        self.philosophical_consideration = self.get_philosophical_consideration()
+        self.legal_consideration = self.get_legal_consideration()        
         
     def clean_text(self, text: str):
         """ Clean Bill Text 
@@ -74,19 +81,20 @@ class UUParser:
         """
 
         cr = re.compile(r"UNDANG-UNDANG REPUBLIK INDONESIA NOMOR\s(\d+)\sTAHUN\s(\d{4})", re.MULTILINE|re.IGNORECASE)
-        res = cr.search(self.__heading).groups(0)
+        res = cr.search(self.header).groups(0)
 
         cr2 = re.compile(r"disahkan\s+di\s+(.+)\spada\stanggal\s(\d+\s\w+\s\d{4})\sPresiden", re.MULTILINE|re.IGNORECASE)
-        res2 = cr2.search(self.__body).groups(0)
+        res2 = cr2.search(self.body).groups(0)
 
         cr3 = re.compile(r"diundangkan\s+di\s+(.+)\spada\stanggal\s(\d+\s\w+\s\d{4})", re.MULTILINE|re.IGNORECASE)
-        res3 = cr3.search(self.__body).groups(0)
+        res3 = cr3.search(self.body).groups(0)
 
         return {
             "number": int(res[0]) if res[0].isdigit() else res[0],
             "year": int(res[1]) if res[1].isdigit() else res[1],
             "signed_date": int(res2[1]) if res2[1].isdigit() else res2[1],
-            "enactment_date": int(res3[1]) if res3[1].isdigit() else res3[1]
+            "enactment_date": int(res3[1]) if res3[1].isdigit() else res3[1],
+            "is_amandement": 'perubahan atas' in self.title.lower()
         }
         
     def get_text(self):
@@ -105,7 +113,7 @@ class UUParser:
                 [str]: (Heading Text)
         """
 
-        return self.__heading
+        return self.header
 
     def get_body(self):
         """ Retrieve bill body text  
@@ -114,7 +122,7 @@ class UUParser:
                 [str]: (Body Text)
         """        
 
-        return self.__body 
+        return self.body
 
     def get_definitions(self):                  
         r1 = re.compile(r"^(.+)( adalah )", re.IGNORECASE);
@@ -140,7 +148,7 @@ class UUParser:
         """        
 
         cr = re.compile(r"menimbang\s*\:(.+)mengingat", re.MULTILINE|re.IGNORECASE)
-        consideration = cr.findall(self.__heading)[0].strip()
+        consideration = cr.findall(self.header)[0].strip()
         consideration = consideration.split(';')
         consideration = [c.strip() for c in consideration]
         consideration = [c for c in consideration if len(c)>0]
@@ -164,7 +172,7 @@ class UUParser:
         """      
 
         cr = re.compile(r"mengingat\s*\:(.+)Dengan\s+Persetujuan", re.MULTILINE|re.IGNORECASE)
-        consideration = cr.findall(self.__heading)[0].strip()        
+        consideration = cr.findall(self.header)[0].strip()        
                 
         consideration = consideration.split(';')
         consideration = [c.strip() for c in consideration]
@@ -190,7 +198,7 @@ class UUParser:
 
         cr = re.compile(r"tentang(.+)dengan rahmat", re.MULTILINE|re.IGNORECASE)
         
-        return cr.findall(self.__heading)[0].strip()
+        return cr.findall(self.header)[0].strip()
 
 
     def get_words(self, n, exclude_stopword=False):           

@@ -28,7 +28,8 @@ class UUParser:
             text += ' '+ pageObj.extractText()
         
         self.__text = self.clean_text(text)       
-        self.__heading, self.__body = self.split_heading_and_body(self.__text)               
+        self.__heading, self.__body = self.split_heading_and_body(self.__text)   
+        self.__sentences = [s.strip() for s in self.__body.split('.')]            
         pdfFileObj.close() 
         
     def clean_text(self, text: str):
@@ -97,7 +98,7 @@ class UUParser:
 
         return self.__text
 
-    def get_heading(self):
+    def get_header(self):
         """ Retrieve bill heading text  
 
             Returns:
@@ -115,13 +116,12 @@ class UUParser:
 
         return self.__body 
 
-    def get_definitions(self):
-        sentences = [s.strip() for s in self.__body.split('.')]          
+    def get_definitions(self):                  
         r1 = re.compile(r"^(.+)( adalah )", re.IGNORECASE);
         r2 = re.compile(r"(disingkat|(disebut)|disingkat,|disebut,)(.+)", re.IGNORECASE);
 
         definitions = []
-        for sentence in sentences:
+        for sentence in self.__sentences:
             if res1 := r1.search(sentence):
                 found = res1.groups(0)[0].strip()
                 if res2 := r2.search(found):
@@ -271,8 +271,19 @@ class UUParser:
 
             if (token[0].isdigit()) or (token[-1].isdigit()):
                 del dict_counts[k]
-                continue
-
-                      
+                continue                     
 
         return sorted(dict_counts.items(), reverse=True, key=lambda x: x[1])
+
+    def get_heading(self):
+        r = re.compile(r"((BAB\s(.+))|(Bagian\s(.+))|(Paragraf\s(.+)))\s((Bagian)|(Pasal)|(Paragraf))");
+
+        chapters = []
+        for sentence in self.__sentences:
+            if res := r.search(sentence):
+                found = res.groups(1)[0]
+                found = re.split(r"( Bagian )|( Pasal )|( Paragraf )", found)[0].strip()
+                
+                chapters.append(found)
+
+        return chapters

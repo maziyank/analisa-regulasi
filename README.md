@@ -13,6 +13,8 @@ The parser currently support:
 - Philosophical Considerations (Konsideran Menimbang)
 - Legal Considerations (Konsideran Mengingat)
 - Definitions
+- Phrases
+- Heading
 
 ```python
 

@@ -255,7 +255,7 @@ class UUParser:
         phrases = []
         preposition = ['dan','atau','yang','dan/atau','dalam','di','pada','untuk','sebagaimana','atas','bawah','dapat',
         'sesuai','saat','paling','oleh','dari','meliputi','terdiri','serta','dengan','ini','lain','dimaksud','maksud',
-        'berdasarkan','tentang','berupa','sejak','paling',
+        'berdasarkan','tentang','berupa','sejak','paling','tetapi','namun','melainkan','tapi','kecuali','terdapat','ada',
         'ayat','pasal','huruf', 'selanjutnya','sebelumnya','adalah','sebagai','disebut','disingkat','secara','melalui']
 
         for i in range(2, max_word + 1):
@@ -321,3 +321,6 @@ class UUParser:
             if found3 := self.get_paragraph(sentence): heading.append(found3)                
 
         return heading        
+
+    def cited_regulation(self):
+        pass

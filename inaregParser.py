@@ -37,7 +37,8 @@ class UUParser:
         self.definitions = self.get_definitions()
         self.heading = self.get_heading()
         self.philosophical_consideration = self.get_philosophical_consideration()
-        self.legal_consideration = self.get_legal_consideration()        
+        self.legal_consideration = self.get_legal_consideration()  
+        self.further_provision = self.get_further_provision()      
         
     def clean_text(self, text: str):
         """ Clean Bill Text 
@@ -124,7 +125,12 @@ class UUParser:
 
         return self.body
 
-    def get_definitions(self):                  
+    def get_definitions(self):                
+        """ Parsing Definitions used in the Bill
+
+        Returns:
+            [list]: (List of definitions)
+        """         
         r1 = re.compile(r"^(.+)( adalah )", re.IGNORECASE);
         r2 = re.compile(r"(disingkat|(disebut)|disingkat,|disebut,)(.+)", re.IGNORECASE);
 
@@ -252,6 +258,16 @@ class UUParser:
         return [" ".join(ngram) for ngram in ngrams]        
 
     def get_phrashes(self, max_word=5, min_occurence=2):
+        """ Get Phrasaes in the Bill using n-gram
+
+        Arguments:
+            max_word : number of words, default 5
+            min_occurence : filter phrases by its occurences, default 2
+
+        Returns:
+            [(str, int)]: (List of tuple of Phrases and Occurences)
+        """  
+                
         phrases = []
         preposition = ['dan','atau','yang','dan/atau','dalam','di','pada','untuk','sebagaimana','atas','bawah','dapat',
         'sesuai','saat','paling','oleh','dari','meliputi','terdiri','serta','dengan','ini','lain','dimaksud','maksud',
@@ -314,6 +330,12 @@ class UUParser:
         return False        
 
     def get_heading(self):
+        """ Get Bill's Heading 
+
+        Returns:
+            [(str)]: (List of Heading)
+        """  
+
         heading = []
         for sentence in self.__sentences:
             if found := self.get_chapter(sentence): heading.append(found)
@@ -325,7 +347,13 @@ class UUParser:
     def cited_regulation(self):
         pass
 
-    def further_provision(self):
+    def get_further_provision(self):
+        """ Get Further Permission mandated by the Bill
+
+        Returns:
+            [(str, str)]: (List of Further Permission)
+        """     
+
         r = re.compile(r"(Ketentuan lebih lanjut mengenai)(.*)((dituangkan dalam)|(diatur dengan)(.*))")
         provisions = []
         for sentence in self.__sentences:

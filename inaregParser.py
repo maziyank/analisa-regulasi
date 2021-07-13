@@ -1,8 +1,7 @@
 from os import walk
-import PyPDF2
 import json
 import re
-
+from pdfminer.high_level import extract_text
 class UUParser:
     """ Indonesian Bill Text Parser.
         Parsing Bill published in PDF.          
@@ -11,7 +10,8 @@ class UUParser:
     def __init__(self, file):        
         self.__text = ""
         if file: self.load_pdf(file)
-        
+
+
     def load_pdf(self, file: str):
         """ Load PDF from PDF. 
         Reccomend loading a bill from official gazette (peraturan.go.id)
@@ -20,15 +20,7 @@ class UUParser:
             file ([str]): filename
         """
 
-        pdfFileObj = open(file, 'rb') 
-        pdfReader = PyPDF2.PdfFileReader(pdfFileObj, strict=False) 
-
-        text = ''
-        for i in range(pdfReader.numPages):
-            pageObj = pdfReader.getPage(i) 
-            text += ' '+ pageObj.extractText()
-        
-        pdfFileObj.close() 
+        text = extract_text(file)
 
         self.__text = self.clean_text(text)               
         self.header, self.body= self.split_heading_and_body(self.__text)   
@@ -112,8 +104,8 @@ class UUParser:
 
         # extract effective date
         cr4 = re.compile(r"Undang-Undang ini mulai berlaku pada\stanggal\s(\d+\s\w+\s\d{4})", re.MULTILINE|re.IGNORECASE)
-        if res4 := cr4.search(self.body):
-            effective_date = res4.groups(0)[1]
+        if res4 := cr4.search(self.body):            
+            effective_date = res4.groups(0)[0]
             result['effective_date'] = int(effective_date) if effective_date.isdigit() else effective_date
         else:
             result['effective_date'] = result['enactment_date'] 

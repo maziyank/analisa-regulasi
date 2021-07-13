@@ -29,7 +29,7 @@ class UUParser:
         
         pdfFileObj.close() 
 
-        self.__text = self.clean_text(text)       
+        self.__text = self.clean_text(text)               
         self.header, self.body= self.split_heading_and_body(self.__text)   
         self.__sentences = [s.strip() for s in self.body.split('.')]           
         self.title = self.get_title()
@@ -70,7 +70,7 @@ class UUParser:
             Returns:
                 [(str, body)]: (Heading, Body)
         """
-        
+
         text = re.search(r"Menetapkan\s*:[^\.]*\.*?", text)
         return (self.__text[:text.span()[1]+1], self.__text[text.span()[1]+1:])
 
@@ -383,7 +383,8 @@ class UUParser:
         for sentence in self.__sentences:
             if found := r.search(sentence):
                 found = found.groups(2)
-                provisions.append((found[1].strip(), found[5].strip()))
+                found = (found[1].strip().split("sebagaimana dimaksud")[0], found[5].strip())
+                provisions.append(found)
 
         return provisions
 

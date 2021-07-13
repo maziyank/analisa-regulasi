@@ -31,7 +31,8 @@ class UUParser:
 
         self.__text = self.clean_text(text)               
         self.header, self.body= self.split_heading_and_body(self.__text)   
-        self.__sentences = [s.strip() for s in self.body.split('.')]           
+        self.__sentences = [s.strip() for s in re.split(r'\D\.', self.body)]    
+        print(self.__sentences)       
         self.title = self.get_title()
         self.info = self.info()
         self.definitions = self.get_definitions()
@@ -388,3 +389,35 @@ class UUParser:
 
         return provisions
 
+    def extract_currency(self):
+        cr1 = re.compile(r"(Rp)([+-]?[0-9]{1,3}(\.?[0-9]{3})*)(,[0-9]{1,4})")
+        cr2 = re.compile(r"(USD)([+-]?[0-9]{1,3}(,?[0-9]{3})*)(\.[0-9]{1,4})")
+
+        currencies = []
+        for sentence in self.__sentences:
+            if found := cr1.search(sentence):
+                currencies.append(found.group(0))
+            if found2 := cr2.search(sentence):
+                currencies.append(found2.group(0))                
+
+        return currencies
+
+
+    def extract_percent(self):
+        cr = re.compile(r"([+-]?[0-9]{1,3}(\.?[0-9]{3})*)%")
+
+        percents = []
+        for sentence in self.__sentences:
+            if found := cr.search(sentence):
+                percents.append(found.group(0))
+
+        return percents        
+
+    def extract_withdraw_provision(self):
+        cr = re.compile(r"Pada saat Undang-Undang ini mulai berlaku(.*)dicabut dan dinyatakan")
+        result = []
+        for sentence in self.__sentences:
+            if found := cr.search(sentence):
+                result.append(found.group(1).strip(', :'))        
+
+        return result

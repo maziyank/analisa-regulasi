@@ -1,5 +1,6 @@
 from os import walk
 import PyPDF2
+import json
 import re
 
 class UUParser:
@@ -31,8 +32,7 @@ class UUParser:
 
         self.__text = self.clean_text(text)               
         self.header, self.body= self.split_heading_and_body(self.__text)   
-        self.__sentences = [s.strip() for s in re.split(r'\D\.', self.body)]    
-        print(self.__sentences)       
+        self.__sentences = [s.strip() for s in re.split(r'\D\.', self.body)]              
         self.title = self.get_title()
         self.info = self.info()
         self.definitions = self.get_definitions()
@@ -160,7 +160,7 @@ class UUParser:
         r2 = re.compile(r"(disingkat|(disebut)|disingkat,|disebut,)(.+)", re.IGNORECASE);
 
         definitions = []
-        for sentence in self.__sentences:
+        for sentence in re.split(r'\.', self.body):
             if res1 := r1.search(sentence):
                 found = res1.groups(0)[0].strip()
                 if res2 := r2.search(found):
@@ -232,7 +232,7 @@ class UUParser:
         return cr.findall(self.header)[0].strip()
 
 
-    def get_words(self, n, exclude_stopword=False):           
+    def get_words(self, n = -1, exclude_stopword=False):           
         """ Get token/words appear in the text.
 
         Args:
@@ -271,7 +271,7 @@ class UUParser:
                         del dict_counts[w]
         
         # check if n is not defined, then return all words
-        if not n: n = len(words)
+        if n == -1: n = len(words)
 
         return sorted(dict_counts.items(), reverse=True, key=lambda x: x[1])[:n]
 
@@ -381,7 +381,7 @@ class UUParser:
 
         r = re.compile(r"(Ketentuan lebih lanjut mengenai)(.*)((dituangkan dalam)|(diatur dengan)(.*))")
         provisions = []
-        for sentence in self.__sentences:
+        for sentence in re.split(r'\.', self.body):
             if found := r.search(sentence):
                 found = found.groups(2)
                 found = (found[1].strip().split("sebagaimana dimaksud")[0], found[5].strip())
@@ -421,3 +421,19 @@ class UUParser:
                 result.append(found.group(1).strip(', :'))        
 
         return result
+
+    def to_json(self):
+        result = dict()
+        result['title'] = self.title
+        result['info'] = self.info
+        result['philosophical_consideration'] = self.philosophical_consideration
+        result['legal_consideration'] = self.legal_consideration
+        result['definitions'] = self.definitions
+        result['heading'] = self.heading
+        result['further_provision'] = self.further_provision
+        result['currency'] = self.extract_currency()
+        result['percent'] = self.extract_percent()
+        result['words'] = self.get_words()
+        result['phrases'] = self.get_phrashes()
+
+        return json.dumps(result)

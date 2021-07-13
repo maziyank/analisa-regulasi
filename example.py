@@ -1,6 +1,8 @@
 from inaregParser import UUParser
 
-test_UU = UUParser('sample/pnbp.pdf')
+test_UU = UUParser('sample/sample3.pdf')
+
+
 print("Judul:", test_UU.title)
 print("\n")
 print("Info:", test_UU.info)
@@ -17,7 +19,7 @@ print("Heading:", test_UU.heading)
 print("\n")
 print("Futher Provision:", test_UU.further_provision)
 print("\n")
-print("Rupiahs:", test_UU.extract_currency())
+print("Currency:", test_UU.extract_currency())
 print("\n")
 print("Percent:", test_UU.extract_percent())
 print("\n")

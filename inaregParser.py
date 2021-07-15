@@ -158,7 +158,7 @@ class UUParser:
                 if res2 := r2.search(found):
                     found = res2.groups(0)[2].strip()                    
                 
-                definitions.append(found)
+                definitions.append((found, sentence.strip()))
 
         return definitions
 

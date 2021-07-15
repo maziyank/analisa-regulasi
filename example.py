@@ -1,6 +1,6 @@
 from inaregParser import UUParser
 
-test_UU = UUParser('sample/sample3.pdf')
+test_UU = UUParser('sample/uu10-2020bt.pdf')
 
 
 print("Judul:", test_UU.title)

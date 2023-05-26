@@ -2,6 +2,7 @@ from os import walk
 import json
 import re
 from pdfminer.high_level import extract_text
+
 class UUParser:
     """ Indonesian Bill Text Parser.
         Parsing Bill published in PDF.          
@@ -9,6 +10,7 @@ class UUParser:
 
     def __init__(self, file):        
         self.__text = ""
+        self.__rawtext = ""
         if file: self.load_pdf(file)
 
 
@@ -21,10 +23,10 @@ class UUParser:
         """
 
         text = extract_text(file)
-
+        self.__rawtext = text
         self.__text = self.clean_text(text)               
         self.header, self.body= self.split_heading_and_body(self.__text)   
-        self.__sentences = [s.strip() for s in re.split(r'\D\.', self.body)]              
+        self.__parsed_text = self.parse_body(self.body)       
         self.title = self.get_title()
         self.info = self.info()
         self.definitions = self.get_definitions()
@@ -33,6 +35,17 @@ class UUParser:
         self.legal_consideration = self.get_legal_consideration()  
         self.further_provision = self.get_further_provision()      
         
+    def get_rawtext(self):
+        """ Get Raw Text
+        
+        Args: None
+
+        Return:
+        [type] : Original text
+        """
+
+        return self.__rawtext
+
     def clean_text(self, text: str):
         """ Clean Bill Text 
 
@@ -46,15 +59,18 @@ class UUParser:
         # remove new lines
         text = text.replace('\n','')
 
-        # remove double white spaces
-        text = re.sub(' +', ' ', text)
-
         # remove page number
         text = re.sub('-\s{0,1}\d+\s{0,1}-', '', text)   
 
         # remove year and gazette number appear in each page
-        text = re.sub('(\d{4},\sNo.\d+)', '', text)           
+        text = re.sub('(\d{4},\sNo.\d+)', '', text)   
+
+        # remove unknown character
+        text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\xff]', '', text)        
         
+        # remove double white spaces
+        text = re.sub(' +', ' ', text)
+
         return text
 
     def split_heading_and_body(self, text):        
@@ -66,6 +82,50 @@ class UUParser:
 
         text = re.search(r"Menetapkan\s*:[^\.]*\.*?", text)
         return (self.__text[:text.span()[1]+1], self.__text[text.span()[1]+1:])
+
+    def parse_body(self, body):
+        """ Parse body structure  
+
+            Returns:
+                [(id, text))]: (Section Title, Text)
+        """
+
+        chunks = [body]
+        rs = [re.compile(r"(BAB\s.+?(?=$|(\sBAB)))"),
+            re.compile(r"(Bagian\s+Ke.+?(?=$|(\sBagian\s+Ke.+)))"),
+            re.compile(r"(Paragraf\s+\d+.+?(?=$|(\sParagraf\s+\d+)))"),
+            re.compile(r"(((?<!dalam)\sPasal\s\d+).+?)(?=$|(?<!dalam)\sPasal\s\d+)")
+            ]
+        
+        for r in rs:
+            temp = chunks.copy(); chunks = []
+            for text in temp:
+                while match := re.search(r, text):
+                    chunks.append(text[:match.span()[0]].strip())
+                    found = text[match.span()[0]:match.span()[1]]
+                    chunks.append(found.strip())
+                    text = text[match.span()[1]:]
+                if len(text.strip())>0:
+                    chunks.append(text.strip())
+
+        chunks = [x for x in chunks if len(x)>0]
+
+        rs2 = [re.compile(r"(^BAB\s[A-Z]+(?=\s))"),
+            re.compile(r"(^Bagian\sKe.+(?=\s))"),
+            re.compile(r"(^Paragraf\s\d+(?=\s))"),
+            re.compile(r"(^Pasal\s\d+(?=\s))"),        
+        ]
+
+        parsed_data = []
+        for text in chunks:
+            for r in rs2:
+                if re.match(r, text):
+                    splited_text = [x.strip() for x in re.split(r, text, maxsplit=1) if len(x)>0]
+                    parsed_data.append(tuple(splited_text))
+                    continue
+                
+
+        return parsed_data
 
     def info(self):
         """ Retrieve general information about the bill (number, year, enacment etc.)
@@ -124,6 +184,17 @@ class UUParser:
 
         return self.__text
 
+    def get_articles(self):
+        """ Retrieve bill articles  
+
+            Returns:
+                [str]: (Article Text)
+        """
+
+        articles = [x for x in self.__parsed_text if "Pasal" in x[0]]
+        
+        return articles
+
     def get_header(self):
         """ Retrieve bill heading text  
 
@@ -152,13 +223,25 @@ class UUParser:
         r2 = re.compile(r"(disingkat|(disebut)|disingkat,|disebut,)(.+)", re.IGNORECASE);
 
         definitions = []
-        for sentence in re.split(r'\.', self.body):
-            if res1 := r1.search(sentence):
-                found = res1.groups(0)[0].strip()
-                if res2 := r2.search(found):
-                    found = res2.groups(0)[2].strip()                    
-                
-                definitions.append((found, sentence.strip()))
+        for id, text in self.get_articles():
+            chunks = []
+            
+            while match := re.search("(\d+\.\s+.+?)(?=$|\d+\.\s+\D)", text):
+                chunks.append(text[:match.span()[0]].strip())
+                found = text[match.span()[0]:match.span()[1]]
+                chunks.append(re.sub("^\d+\.\s+", "", found.strip()))
+                text = text[match.span()[1]:]
+            if len(text.strip())>0:
+                chunks.append(text.strip())
+
+            for chunk in chunks:
+                if res1 := r1.search(chunk):
+                    found = res1.groups(0)[0].strip()
+                    if res2 := r2.search(found):
+                        found = res2.groups(0)[2].strip()                    
+                    
+                    definitions.append((id, found, chunk.strip()))
+            
 
         return definitions
 
@@ -316,36 +399,6 @@ class UUParser:
 
         return sorted(dict_counts.items(), reverse=True, key=lambda x: x[1])
 
-    def get_chapter(self, text):
-        r = re.compile(r"(BAB\s(.+))\s((Bagian)|(Pasal)|(Paragraf))");
-        if res := r.search(text):
-            found = res.groups(1)[0]
-            found = re.split(r"( Bagian )|( Pasal )|( Paragraf )", found)[0].strip()                
-
-            return found
-        
-        return False
-
-    def get_part(self, text):
-        r = re.compile(r"(Bagian\s(.+))\s((Pasal)|(Paragraf))");
-        if res := r.search(text):
-            found = res.groups(1)[0]
-            found = re.split(r"( Pasal )|( Paragraf )", found)[0].strip()                
-
-            return found
-        
-        return False
-
-    def get_paragraph(self, text):
-        r = re.compile(r"(Paragraf\s(.+))\s(Pasal)");
-        if res := r.search(text):
-            found = res.groups(1)[0]
-            found = re.split(r"Pasal", found)[0].strip()                
-
-            return found
-        
-        return False        
-
     def get_heading(self):
         """ Get Bill's Heading 
 
@@ -353,16 +406,9 @@ class UUParser:
             [(str)]: (List of Heading)
         """  
 
-        heading = []
-        for sentence in self.__sentences:
-            if found := self.get_chapter(sentence): heading.append(found)
-            if found2 := self.get_part(sentence): heading.append(found2)
-            if found3 := self.get_paragraph(sentence): heading.append(found3)                
+        heading = [x for x in self.__parsed_text if "Pasal" not in x[0]]   
 
-        return heading        
-
-    def cited_regulation(self):
-        pass
+        return heading
 
     def get_further_provision(self):
         """ Get Further Permission mandated by the Bill
@@ -373,11 +419,11 @@ class UUParser:
 
         r = re.compile(r"(Ketentuan lebih lanjut mengenai)(.*)((dituangkan dalam)|(diatur dengan)(.*))")
         provisions = []
-        for sentence in re.split(r'\.', self.body):
+        for id, sentence in self.__parsed_text:
             if found := r.search(sentence):
                 found = found.groups(2)
                 found = (found[1].strip().split("sebagaimana dimaksud")[0], found[5].strip())
-                provisions.append(found)
+                provisions.append((id, found))
 
         return provisions
 
@@ -386,11 +432,11 @@ class UUParser:
         cr2 = re.compile(r"(USD)([+-]?[0-9]{1,3}(,?[0-9]{3})*)(\.[0-9]{1,4})")
 
         currencies = []
-        for sentence in self.__sentences:
+        for id, sentence in self.__parsed_text:
             if found := cr1.search(sentence):
-                currencies.append(found.group(0))
+                currencies.append((id, found.group(0)))
             if found2 := cr2.search(sentence):
-                currencies.append(found2.group(0))                
+                currencies.append((id, found2.group(0)))                
 
         return currencies
 
@@ -399,18 +445,18 @@ class UUParser:
         cr = re.compile(r"([+-]?[0-9]{1,3}(\.?[0-9]{3})*)%")
 
         percents = []
-        for sentence in self.__sentences:
+        for id, sentence in self.__parsed_text:
             if found := cr.search(sentence):
-                percents.append(found.group(0))
+                percents.append((id, found.group(0)))
 
         return percents        
 
     def extract_withdraw_provision(self):
         cr = re.compile(r"Pada saat Undang-Undang ini mulai berlaku(.*)dicabut dan dinyatakan")
         result = []
-        for sentence in self.__sentences:
+        for id, sentence in self.__parsed_text:
             if found := cr.search(sentence):
-                result.append(found.group(1).strip(', :'))        
+                result.append((id, found.group(1).strip(', :')))        
 
         return result
 

@@ -16,6 +16,7 @@ The parser currently support:
 - Phrases
 - Heading
 - Further Provisions
+- Articles
 
 ```python
 
@@ -43,7 +44,8 @@ print("\n")
 print("Percent:", test_UU.extract_percent())
 print("\n")
 print("Withdraw:", test_UU.extract_withdraw_provision())
-
+print("\n")
+print("List of Articles:", test_UU.get_articles())
 
 
 

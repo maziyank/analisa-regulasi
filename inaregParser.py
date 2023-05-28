@@ -101,7 +101,6 @@ class UUParser:
 
         is_amandement = 'perubahan atas' in self.title.lower()
         
-        
         chunks = [body]
         rs = []
         if is_amandement:
@@ -127,7 +126,7 @@ class UUParser:
                     while match := re.search(r, text):
                         chunks.append(text[:match.span()[0]].strip())
                         found = text[match.span()[0]:match.span()[1]]
-                        if index != 1:
+                        if index != 1 or not is_amandement:
                             chunks.append(found.strip())
                         else:
                             chunks.append(f"$AmmendedItem=> {found.strip()}")
@@ -169,7 +168,7 @@ class UUParser:
         result = dict()
 
         # extract number and year
-        cr = re.compile(r"(UNDANG-UNDANG)|(PERATURAN PEMERINTAH)|(PERATURAN PRESIDEN) REPUBLIK INDONESIA NOMOR\s(\d+)\sTAHUN\s(\d{4})", re.MULTILINE|re.IGNORECASE)
+        cr = re.compile(r"NOMOR\s+(\d+)\s+TAHUN\s+(\d{4})\s+TENTANG", re.MULTILINE|re.IGNORECASE)
         if res := cr.search(self.header):
             numberyear = res.groups(0)
             result['number'] = int(numberyear[0]) if numberyear[0].isdigit() else numberyear[0]
@@ -179,7 +178,7 @@ class UUParser:
             result['year'] = None              
 
         # extract signed date
-        cr2 = re.compile(r"disahkan\s+di\s+(.+)\spada\stanggal\s(\d+\s\w+\s\d{4})\sPresiden", re.MULTILINE|re.IGNORECASE)        
+        cr2 = re.compile(r"[dD]isahkan\s+di\s+(.+)\spada\s+tanggal\s+(\d+\s\w+\s\d{4})", re.MULTILINE|re.IGNORECASE)        
         if res2 := cr2.search(self.body):
             signed_date = res2.groups(0)[1]
             result['signed_date'] = int(signed_date) if signed_date.isdigit() else signed_date
@@ -195,9 +194,9 @@ class UUParser:
             result['enactment_date'] = None
 
         # extract effective date
-        cr4 = re.compile(r"(Undang-Undang)|(Peraturan Pemerintah)|(Peraturan Presiden) ini mulai berlaku pada\stanggal\s(\d+\s\w+\s\d{4})", re.MULTILINE|re.IGNORECASE)
+        cr4 = re.compile(r"\s+ini\s+mulai\s+berlaku\s+pada\s+tanggal\s+(\d+\s\w+\s\d{4})", re.MULTILINE|re.IGNORECASE)
         if res4 := cr4.search(self.body):            
-            effective_date = res4.groups(0)[0]
+            effective_date = res4.groups(1)[0]
             result['effective_date'] = int(effective_date) if effective_date.isdigit() else effective_date
         else:
             result['effective_date'] = result['enactment_date'] 
@@ -438,7 +437,7 @@ class UUParser:
             [(str)]: (List of Heading)
         """  
 
-        heading = [x for x in self.parsed_text if "Pasal" not in x[0]]   
+        heading = [x for x in self.parsed_text if "Pasal" not in x[0] and "$AmmendedItem=>" not in x[0] and "Unknown" not in x[0]]   
 
         return heading
 

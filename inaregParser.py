@@ -505,5 +505,7 @@ class UUParser:
         result['percent'] = self.extract_percent()
         result['words'] = self.get_words()
         result['phrases'] = self.get_phrashes()
+        result["content"] = self.parsed_text()
+        result["articles"] = self.get_articles(),
 
         return json.dumps(result)

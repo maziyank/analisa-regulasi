@@ -14,7 +14,7 @@ class UUParser:
         if file: self.load_pdf(file, parse_now)
 
 
-    def load_pdf(self, file: str, parse_now: bool = True):
+    def load_pdf(self, file: str, from_pdf=True, parse_now: bool = True):
         """ Load PDF from PDF. 
         Reccomend loading a bill from official gazette (peraturan.go.id)
 
@@ -22,12 +22,18 @@ class UUParser:
             file ([str]): filename
         """
 
-        text = extract_text(file)
+        if from_pdf:
+            text = extract_text(file)
+        else:
+            with open(file, "rb") as f:
+                text = f.read()
+
         self.rawtext = text
         if parse_now:
             self.__text = self.clean_text(text)       
                     
-            self.header, self.body= self.split_heading_and_body(self.__text)          
+            self.header, self.body= self.split_heading_and_body(self.__text)     
+            self.body, self.explanation = self.split_body_and_explanation(self.body)     
             self.title = self.get_title()
             self.parsed_text = self.parse_body(self.body)
 
@@ -42,6 +48,20 @@ class UUParser:
         """
 
         return self.rawtext
+        
+    def check_connection_phrase(self, text):
+        text = re.sub(' +',' ', text)
+        found = []
+        while m := re.search("(\s?\.\.\.\s)", text):
+            pot1 = text[: m.span()[0]]
+            pot2 = text[m.span()[1]: ]
+            s1= pot1.split()
+            s2= pot2.split()
+            if (s1[-1] == s2[1]) and (s1[-2] == s2[0]):
+                found.append(f"{s1[-2]} {s1[-1]}{text[m.span()[0]: m.span()[1]]}")
+            text = text[m.span()[1]:]
+
+        return found
 
     def clean_text(self, text: str):
         """ Clean Bill Text 
@@ -55,7 +75,10 @@ class UUParser:
 
         # remove unknown character
         text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\xff]', '', text)      
-        text = re.sub('\s+(\.\s?){3}','...', text)
+        text = re.sub('\s+(\.\s+){3}','...', text)
+        text = re.sub('\s+…','...', text)
+        text = re.sub('\s+\.\.\.[^[\.]]','...', text)
+        
 
         # remove common unnecessary part
         text = text.split('\n')
@@ -80,6 +103,10 @@ class UUParser:
 
         text = ' '.join(temp) 
 
+        conn_phrases = self.check_connection_phrase(text)
+        for cp in conn_phrases:
+            text = text.replace(cp, '')
+
         return text
 
     def split_heading_and_body(self, text):        
@@ -91,6 +118,17 @@ class UUParser:
 
         text = re.search(r"Menetapkan\s*:[^\.]*\.*?", text)
         return (self.__text[:text.span()[1]+1], self.__text[text.span()[1]+1:])
+
+    def split_body_and_explanation(self, text):
+        """ Split bill body and explnation body text  
+
+            Returns:
+                [(str, body)]: (Body, Explanation)
+        """        
+        text = re.search(r"PENJELASAN\S+ATAS\s+UNDANG-UNDANG\s+REPUBLIK\s+INDONESIA", text)
+        if text:
+            return (self.__text[:text.span()[1]+1], self.__text[text.span()[1]+1:])
+        return self.body, ""
 
     def parse_body(self, body):
         """ Parse body structure  

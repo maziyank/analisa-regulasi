@@ -8,13 +8,13 @@ class UUParser:
         Parsing Bill published in PDF.          
     """                
 
-    def __init__(self, file):        
+    def __init__(self, file, parse_now: bool = False):        
         self.__text = ""
-        self.__rawtext = ""
-        if file: self.load_pdf(file)
+        self.rawtext = ""
+        if file: self.load_pdf(file, parse_now)
 
 
-    def load_pdf(self, file: str):
+    def load_pdf(self, file: str, parse_now: bool = True):
         """ Load PDF from PDF. 
         Reccomend loading a bill from official gazette (peraturan.go.id)
 
@@ -23,17 +23,14 @@ class UUParser:
         """
 
         text = extract_text(file)
-        self.__rawtext = text
-        self.__text = self.clean_text(text)               
-        self.header, self.body= self.split_heading_and_body(self.__text)   
-        self.__parsed_text = self.parse_body(self.body)       
-        self.title = self.get_title()
-        self.info = self.info()
-        self.definitions = self.get_definitions()
-        self.heading = self.get_heading()
-        self.philosophical_consideration = self.get_philosophical_consideration()
-        self.legal_consideration = self.get_legal_consideration()  
-        self.further_provision = self.get_further_provision()      
+        self.rawtext = text
+        if parse_now:
+            self.__text = self.clean_text(text)       
+                    
+            self.header, self.body= self.split_heading_and_body(self.__text)          
+            self.title = self.get_title()
+            self.parsed_text = self.parse_body(self.body)
+
         
     def get_rawtext(self):
         """ Get Raw Text
@@ -44,7 +41,7 @@ class UUParser:
         [type] : Original text
         """
 
-        return self.__rawtext
+        return self.rawtext
 
     def clean_text(self, text: str):
         """ Clean Bill Text 
@@ -56,20 +53,32 @@ class UUParser:
             [type]: Clean Text
         """        
 
-        # remove new lines
-        text = text.replace('\n','')
-
-        # remove page number
-        text = re.sub('-\s{0,1}\d+\s{0,1}-', '', text)   
-
-        # remove year and gazette number appear in each page
-        text = re.sub('(\d{4},\sNo.\d+)', '', text)   
-
         # remove unknown character
-        text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\xff]', '', text)        
-        
-        # remove double white spaces
-        text = re.sub(' +', ' ', text)
+        text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\xff]', '', text)      
+        text = re.sub('\s+(\.\s?){3}','...', text)
+
+        # remove common unnecessary part
+        text = text.split('\n')
+        temp = []
+        for t in text:
+            if "PRESIDEN" in t.strip():
+               continue
+            if "REPUBLIK INDONESIA" in t.strip():
+               continue
+            if re.match("SK\s+No\s+\d+.+?A", t):
+               continue
+            if re.match("\w\.{3}$", t.strip()):
+               continue
+            if re.match("^www.+\.go\.id$", t.strip()):
+               continue
+            if re.match("^-\s{0,3}\d+\s{0,3}-$", t.strip()):
+               continue
+            if re.match("(\d{4},\sNo.\d+)", t.strip()):
+               continue 
+
+            temp.append(re.sub(' +', ' ', t))
+
+        text = ' '.join(temp) 
 
         return text
 
@@ -90,39 +99,62 @@ class UUParser:
                 [(id, text))]: (Section Title, Text)
         """
 
+        is_amandement = 'perubahan atas' in self.title.lower()
+        
+        
         chunks = [body]
-        rs = [re.compile(r"(BAB\s.+?(?=$|(\sBAB)))"),
+        rs = []
+        if is_amandement:
+            rs.extend([
+                re.compile(r"((Pasal\sI).+?((?=\s+Pasal\sII)))|((Pasal\sII).+?((?=$|\s+Pasal\sI)))"),
+                re.compile(r"""(\d+\.\s{0,3}(Judul|Ketentuan|Di\s+antara).+?berbunyi\s+sebagai\s+berikut\s?:)|(\d+\.\s{0,3}Ketentuan\sPasal\s\w+\sdihapus)|(\d+\.\s{0,3}Pasal\s).+?((tercantum|ditetapkan)\s+dalam\s+penjelasan(\s+pasal\s+demi\s+pasal\s+([Uu]ndang-[Uu]ndang\s+ini)?)?\.?)""")
+            ]) 
+
+        rs.extend([
+            re.compile(r"(BAB\s.+?(?=$|(\sBAB)))"),
             re.compile(r"(Bagian\s+Ke.+?(?=$|(\sBagian\s+Ke.+)))"),
             re.compile(r"(Paragraf\s+\d+.+?(?=$|(\sParagraf\s+\d+)))"),
             re.compile(r"(((?<!dalam)\sPasal\s\d+).+?)(?=$|(?<!dalam)\sPasal\s\d+)")
-            ]
+            ])
+
         
-        for r in rs:
+        for index, r in enumerate(rs):
             temp = chunks.copy(); chunks = []
             for text in temp:
-                while match := re.search(r, text):
-                    chunks.append(text[:match.span()[0]].strip())
-                    found = text[match.span()[0]:match.span()[1]]
-                    chunks.append(found.strip())
-                    text = text[match.span()[1]:]
-                if len(text.strip())>0:
+                if "$AmmendedItem=>" in text: 
                     chunks.append(text.strip())
+                else:
+                    while match := re.search(r, text):
+                        chunks.append(text[:match.span()[0]].strip())
+                        found = text[match.span()[0]:match.span()[1]]
+                        if index != 1:
+                            chunks.append(found.strip())
+                        else:
+                            chunks.append(f"$AmmendedItem=> {found.strip()}")
+                        text = text[match.span()[1]:]
+                    if len(text.strip())>0:
+                        chunks.append(text.strip())
 
         chunks = [x for x in chunks if len(x)>0]
-
-        rs2 = [re.compile(r"(^BAB\s[A-Z]+(?=\s))"),
-            re.compile(r"(^Bagian\sKe.+(?=\s))"),
+        
+        rs2 = [
+            re.compile(r"(^Pasal\sI+(?=\s))"),
+            re.compile(r"(^\$AmmendedItem=>(?=\s))"),
+            re.compile(r"(^BAB\s[A-Z]+(?=\s))"),
+            re.compile(r"(^Bagian\sKe\w+(?=\s))"),
             re.compile(r"(^Paragraf\s\d+(?=\s))"),
-            re.compile(r"(^Pasal\s\d+(?=\s))"),        
+            re.compile(r"(^Pasal\s\d+(?=\s))") if not is_amandement else re.compile(r"(^\"?Pasal\s\d+[A-Z]?(?=\s))"),        
         ]
 
         parsed_data = []
         for text in chunks:
-            for r in rs2:
+            for i, r in enumerate(rs2):
                 if re.match(r, text):
                     splited_text = [x.strip() for x in re.split(r, text, maxsplit=1) if len(x)>0]
                     parsed_data.append(tuple(splited_text))
-                    continue
+                    break
+                if i==len(rs2) - 1:
+                    parsed_data.append(("Unknown", text))
                 
 
         return parsed_data
@@ -137,7 +169,7 @@ class UUParser:
         result = dict()
 
         # extract number and year
-        cr = re.compile(r"UNDANG-UNDANG REPUBLIK INDONESIA NOMOR\s(\d+)\sTAHUN\s(\d{4})", re.MULTILINE|re.IGNORECASE)
+        cr = re.compile(r"(UNDANG-UNDANG)|(PERATURAN PEMERINTAH)|(PERATURAN PRESIDEN) REPUBLIK INDONESIA NOMOR\s(\d+)\sTAHUN\s(\d{4})", re.MULTILINE|re.IGNORECASE)
         if res := cr.search(self.header):
             numberyear = res.groups(0)
             result['number'] = int(numberyear[0]) if numberyear[0].isdigit() else numberyear[0]
@@ -163,7 +195,7 @@ class UUParser:
             result['enactment_date'] = None
 
         # extract effective date
-        cr4 = re.compile(r"Undang-Undang ini mulai berlaku pada\stanggal\s(\d+\s\w+\s\d{4})", re.MULTILINE|re.IGNORECASE)
+        cr4 = re.compile(r"(Undang-Undang)|(Peraturan Pemerintah)|(Peraturan Presiden) ini mulai berlaku pada\stanggal\s(\d+\s\w+\s\d{4})", re.MULTILINE|re.IGNORECASE)
         if res4 := cr4.search(self.body):            
             effective_date = res4.groups(0)[0]
             result['effective_date'] = int(effective_date) if effective_date.isdigit() else effective_date
@@ -191,7 +223,7 @@ class UUParser:
                 [str]: (Article Text)
         """
 
-        articles = [x for x in self.__parsed_text if "Pasal" in x[0]]
+        articles = [x for x in self.parsed_text if "Pasal" in x[0]]
         
         return articles
 
@@ -406,7 +438,7 @@ class UUParser:
             [(str)]: (List of Heading)
         """  
 
-        heading = [x for x in self.__parsed_text if "Pasal" not in x[0]]   
+        heading = [x for x in self.parsed_text if "Pasal" not in x[0]]   
 
         return heading
 
@@ -419,7 +451,7 @@ class UUParser:
 
         r = re.compile(r"(Ketentuan lebih lanjut mengenai)(.*)((dituangkan dalam)|(diatur dengan)(.*))")
         provisions = []
-        for id, sentence in self.__parsed_text:
+        for id, sentence in self.parsed_text:
             if found := r.search(sentence):
                 found = found.groups(2)
                 found = (found[1].strip().split("sebagaimana dimaksud")[0], found[5].strip())
@@ -432,7 +464,7 @@ class UUParser:
         cr2 = re.compile(r"(USD)([+-]?[0-9]{1,3}(,?[0-9]{3})*)(\.[0-9]{1,4})")
 
         currencies = []
-        for id, sentence in self.__parsed_text:
+        for id, sentence in self.parsed_text:
             if found := cr1.search(sentence):
                 currencies.append((id, found.group(0)))
             if found2 := cr2.search(sentence):
@@ -445,7 +477,7 @@ class UUParser:
         cr = re.compile(r"([+-]?[0-9]{1,3}(\.?[0-9]{3})*)%")
 
         percents = []
-        for id, sentence in self.__parsed_text:
+        for id, sentence in self.parsed_text:
             if found := cr.search(sentence):
                 percents.append((id, found.group(0)))
 
@@ -454,7 +486,7 @@ class UUParser:
     def extract_withdraw_provision(self):
         cr = re.compile(r"Pada saat Undang-Undang ini mulai berlaku(.*)dicabut dan dinyatakan")
         result = []
-        for id, sentence in self.__parsed_text:
+        for id, sentence in self.parsed_text:
             if found := cr.search(sentence):
                 result.append((id, found.group(1).strip(', :')))        
 

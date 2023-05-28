@@ -150,10 +150,10 @@ class UUParser:
             for i, r in enumerate(rs2):
                 if re.match(r, text):
                     splited_text = [x.strip() for x in re.split(r, text, maxsplit=1) if len(x)>0]
-                    parsed_data.append(tuple(splited_text))
+                    parsed_data.append(splited_text)
                     break
                 if i==len(rs2) - 1:
-                    parsed_data.append(("Unknown", text))
+                    parsed_data.append(["Unknown", text])
                 
 
         return parsed_data
@@ -295,9 +295,9 @@ class UUParser:
             num = re.match(r"^[a-z]\.", txt)     
             if num: 
                 b = num.group(0)
-                res.append((b.replace('.','').strip(), txt.replace(b, '').strip()))               
+                res.append([b.replace('.','').strip(), txt.replace(b, '').strip()])               
             else:
-                res.append((None, txt))
+                res.append([None, txt])
         
         return res
     
@@ -320,9 +320,9 @@ class UUParser:
             num = re.match(r"^\d+\.", txt)     
             if num: 
                 b = num.group(0)
-                res.append((b.replace('.','').strip(), txt.replace(b, '').strip()))               
+                res.append([b.replace('.','').strip(), txt.replace(b, '').strip()])               
             else:
-                res.append((None, txt))
+                res.append([None, txt])
         
         return res
         
@@ -491,20 +491,20 @@ class UUParser:
 
         return result
 
-    def to_json(self):
+    def to_json(self, return_dict = False):
         result = dict()
-        result['title'] = self.title
-        result['info'] = self.info
-        result['philosophical_consideration'] = self.philosophical_consideration
-        result['legal_consideration'] = self.legal_consideration
-        result['definitions'] = self.definitions
-        result['heading'] = self.heading
-        result['further_provision'] = self.further_provision
+        result['title'] = self.get_title()
+        result['info'] = self.info()
+        result['philosophical_consideration'] = self.get_philosophical_consideration()
+        result['legal_consideration'] = self.get_legal_consideration()
+        result['definitions'] = self.get_definitions()
+        result['heading'] = self.get_heading()
+        result['further_provision'] = self.get_further_provision()
         result['currency'] = self.extract_currency()
         result['percent'] = self.extract_percent()
         result['words'] = self.get_words()
         result['phrases'] = self.get_phrashes()
-        result["content"] = self.parsed_text()
+        result["content"] = self.parsed_text
         result["articles"] = self.get_articles(),
 
-        return json.dumps(result)
+        return json.dumps(result) if not return_dict else result

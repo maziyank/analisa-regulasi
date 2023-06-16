@@ -2,8 +2,9 @@ from os import walk
 import json
 import re
 from pdfminer.high_level import extract_text
+import fitz
 
-class UUParser:
+class RegParser:
     """ Indonesian Bill Text Parser.
         Parsing Bill published in PDF.          
     """                
@@ -11,7 +12,8 @@ class UUParser:
     def __init__(self, file, parse_now: bool = False):        
         self.__text = ""
         self.rawtext = ""
-        if file: self.load_pdf(file, parse_now)
+        from_pdf = '.pdf' in file
+        if file: self.load_pdf(file, from_pdf,  parse_now)
 
 
     def load_pdf(self, file: str, from_pdf=True, parse_now: bool = True):
@@ -21,9 +23,14 @@ class UUParser:
         Args:
             file ([str]): filename
         """
+        
+        text = ''
 
         if from_pdf:
-            text = extract_text(file)
+            # text = extract_text(file)
+            reader = fitz.open(file)
+            for page in reader:
+                text += page.get_text()
         else:
             with open(file, "rb") as f:
                 text = f.read()
@@ -67,7 +74,7 @@ class UUParser:
         """ Clean Bill Text 
 
         Args:
-            text (str): Loaded text
+            text (str): Loaded textclean_text
 
         Returns:
             [type]: Clean Text
@@ -92,14 +99,14 @@ class UUParser:
                continue
             if re.match("\w\.{3}$", t.strip()):
                continue
-            if re.match("^www.+\.go\.id$", t.strip()):
+            if re.match("^www.+\.go\.id", t.strip()):
                continue
             if re.match("^-\s{0,3}\d+\s{0,3}-$", t.strip()):
                continue
             if re.match("(\d{4},\sNo.\d+)", t.strip()):
                continue 
 
-            temp.append(re.sub(' +', ' ', t))
+            temp.append(t)
 
         text = ' '.join(temp) 
 
@@ -107,7 +114,7 @@ class UUParser:
         for cp in conn_phrases:
             text = text.replace(cp, '')
 
-        return text
+        return re.sub("\s{2,}"," ", text)
 
     def split_heading_and_body(self, text):        
         """ Split bill heading and body text  
@@ -315,54 +322,29 @@ class UUParser:
         return definitions
 
     
-    def get_philosophical_consideration(self):
+    def get_legal_consideration(self):
         """ Parsing Philosophical Consideration
 
         Returns:
             [(str, str)]: (Number and Consideration Text)
         """        
 
-        cr = re.compile(r"menimbang\s*\:(.+)mengingat", re.MULTILINE|re.IGNORECASE)
-        consideration = cr.findall(self.header)[0].strip()
-        consideration = consideration.split(';')
-        consideration = [c.strip() for c in consideration]
-        consideration = [c for c in consideration if len(c)>0]
+        cr = re.compile(r"(\d+\.\s+(Undang|Peraturan|Keputusan|TAP|Pasal).+?\;)", re.MULTILINE|re.IGNORECASE)
+        consideration = cr.findall(self.header)        
                 
-        res = []
-        for txt in consideration:
-            num = re.match(r"^[a-z]\.", txt)     
-            if num: 
-                b = num.group(0)
-                res.append([b.replace('.','').strip(), txt.replace(b, '').strip()])               
-            else:
-                res.append([None, txt])
-        
-        return res
+        return consideration
     
-    def get_legal_consideration(self):
+    def get_philosophical_consideration(self):
         """ Parsing Legal Consideration
 
         Returns:
             [(str, str)]: (Number and Consideration Text)
         """      
 
-        cr = re.compile(r"mengingat\s*\:(.+)Dengan\s+Persetujuan", re.MULTILINE|re.IGNORECASE)
-        consideration = cr.findall(self.header)[0].strip()        
+        cr = re.compile(r"[a-z]\.\sbahwa.+?\;", re.MULTILINE|re.IGNORECASE)
+        consideration = cr.findall(self.header)        
                 
-        consideration = consideration.split(';')
-        consideration = [c.strip() for c in consideration]
-        consideration = [c for c in consideration if len(c)>0]
-                
-        res = []
-        for txt in consideration:
-            num = re.match(r"^\d+\.", txt)     
-            if num: 
-                b = num.group(0)
-                res.append([b.replace('.','').strip(), txt.replace(b, '').strip()])               
-            else:
-                res.append([None, txt])
-        
-        return res
+        return consideration
         
     def get_title(self):
         """ Parsing Bill Title

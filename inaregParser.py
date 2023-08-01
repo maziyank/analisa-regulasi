@@ -39,8 +39,8 @@ class RegParser:
         if parse_now:
             self.__text = self.clean_text(text)       
                     
-            self.header, self.body= self.split_heading_and_body(self.__text)     
-            self.body, self.explanation = self.split_body_and_explanation(self.body)     
+            self.header, self.body= self.split_heading_and_body(self.__text)
+            # self.body, self.explanation = self.split_body_and_explanation(self.body)     
             self.title = self.get_title()
             self.parsed_text = self.parse_body(self.body)
 
@@ -122,20 +122,27 @@ class RegParser:
             Returns:
                 [(str, body)]: (Heading, Body)
         """
-
-        text = re.search(r"Menetapkan\s*:[^\.]*\.*?", text)
-        return (self.__text[:text.span()[1]+1], self.__text[text.span()[1]+1:])
-
+        try:
+            if re.match(r"Menetapkan\s*:[^\.]*\.*?", text):
+                found = re.search(r"Menetapkan\s*:[^\.]*\.*?", text)
+            else:
+                found = re.search(r"MEMUTUSKAN\s*:[^\.]*\.*?", text)
+            return (self.__text[:found.span()[1]+1], self.__text[found.span()[1]+1:])
+        except:
+            return text, text
+        
     def split_body_and_explanation(self, text):
         """ Split bill body and explnation body text  
 
             Returns:
                 [(str, body)]: (Body, Explanation)
         """        
-        text = re.search(r"PENJELASAN\S+ATAS\s+UNDANG-UNDANG\s+REPUBLIK\s+INDONESIA", text)
-        if text:
-            return (self.__text[:text.span()[1]+1], self.__text[text.span()[1]+1:])
-        return self.body, ""
+        try:
+            found = re.search(r"PENJELASAN\S+ATAS\s+UNDANG-UNDANG\s+REPUBLIK\s+INDONESIA", text)
+            if found:
+                return (self.__text[:found.span()[1]+1], self.__text[found.span()[1]+1:])
+        except:
+            return (text, "")
 
     def parse_body(self, body):
         """ Parse body structure  
@@ -314,9 +321,11 @@ class RegParser:
                 if res1 := r1.search(chunk):
                     found = res1.groups(0)[0].strip()
                     if res2 := r2.search(found):
-                        found = res2.groups(0)[2].strip()                    
+                        found = res2.groups(0)[2].strip()     
+                        
+                    terms = re.split("(adalah|yang\sselanjutnya)", chunk.strip())[0].strip()
                     
-                    definitions.append((id, found, chunk.strip()))
+                    definitions.append((id, terms, found, chunk.strip()))
             
 
         return definitions
@@ -352,11 +361,12 @@ class RegParser:
         Returns:
             [str]: Title
         """      
-
-        cr = re.compile(r"tentang(.+)dengan rahmat", re.MULTILINE|re.IGNORECASE)
-        
-        return cr.findall(self.header)[0].strip()
-
+    
+        # try:
+        cr = re.compile(r"MENETAPKAN\s?:.+?\.", re.MULTILINE|re.IGNORECASE)
+        return cr.findall(self.header)[0].split("TENTANG")[1].strip()
+        # except:
+        return "Unknownxx"
 
     def get_words(self, n = -1, exclude_stopword=False):           
         """ Get token/words appear in the text.
